@@ -1,0 +1,149 @@
+
+import os, sys, glob
+import json
+
+from pyramid.response import Response
+
+BaseDir = '/home/wayne/crcns'
+
+ExperimentCache = {}
+
+def FormatAsOptions(vals, selected) :
+    return ' '.join(['<option%s>%s</option>' % (' selected' if v in selected else '', v) for v in vals])
+
+def HdfFilename(dataset, experiment) :
+    return BaseDir + '/' + dataset + '/' + experiment + '.hdf'
+    
+def DatasetOptions(dataset) :
+    opts = ['pvc3_cat']
+    return FormatAsOptions(opts, dataset)
+
+def ExperimentOptions(dataset, experiment) :
+    if dataset :
+        opts = [os.path.splitext(os.path.split(f)[1])[0] for f in glob.glob(BaseDir + '/' + dataset + '/*.hdf')]
+    else :
+        opts = []
+    return FormatAsOptions(opts, [experiment])
+
+def UnitOptions(dataset, experiment, units) :
+    if dataset and experiment :
+        filename = HdfFilename(dataset, experiment)
+        cmd = '%s/crcns_hdf.py --list-spiketrains --filename %s' % (BaseDir, filename, )
+        opts = [u.strip() for u in os.popen(cmd).readlines()]
+    else :
+        opts = []
+    return FormatAsOptions(opts, units)
+
+def ReadExperiment(dataset, experiment) :
+    filename = HdfFilename(dataset, experiment)
+    return read_hdf(filename)
+
+def SpiketrainCode(dataset, experiment, units) :
+    filename = HdfFilename(dataset, experiment)
+    ret = ""
+    for unit in units :
+        cmd = '%s/crcns_hdf.py --spiketrain-values --filename %s --unit %s' % (BaseDir, filename, unit)
+        vals = {
+            'values' : json.dumps([int(u) for u in os.popen(cmd).readlines()]),
+            'unit' : unit,
+            }
+        ret += """
+<canvas id="%(unit)s_canvas" width="800" height="60"></canvas>
+<script>make_spiketime_plot("%(unit)s", %(values)s);</script></br>
+""" % vals
+    return ret
+
+def GetPage(req) :
+    dataset = req.GET.get('dataset', 'pvc3_cat') # None)
+    experiment = req.GET.get('experiment', 'natural_movie_test') # None)
+    units = req.GET.getall('unit')
+    
+    vals = {
+        'dataset_options' : DatasetOptions(dataset),
+        'experiment_options' : ExperimentOptions(dataset, experiment),
+        'unit_options' : UnitOptions(dataset, experiment, units),
+        'spiketrain_code' : SpiketrainCode(dataset, experiment, units),
+        }
+    
+    body = """
+<html>
+<head>
+
+<meta http-equiv="Content-Type-Script" content="text/javascript">
+
+<script>
+function
+make_spiketime_plot(uname, spiketimes)
+{
+    // What is the min and max spike time..  Assume spiketimes is sorted
+    var mintime = spiketimes[0];
+    var maxtime = spiketimes[spiketimes.length - 1];
+    
+    var canv = document.getElementById(uname + "_canvas");
+    var ctx = canv.getContext("2d");
+
+    var width = canv.width;
+    var height = canv.height;
+    var margin = 5;
+    var datawidth = width - margin * 2;
+    var dataheight = height - margin * 2;
+
+    ctx.fillStyle = "#FFEEEE";
+    ctx.fillRect(margin, margin, datawidth, dataheight);
+    var tfactor = datawidth / (maxtime - mintime);
+    for (var i = 0; i < spiketimes.length; i++) {
+        var x = (spiketimes[i] - mintime) * tfactor;
+        ctx.moveTo(x + margin, margin);
+        ctx.lineTo(x + margin, dataheight + margin);
+        ctx.stroke();
+    }
+//    document.write(uname);
+//    document.write(" ");
+//    document.write(mintime);
+//    document.write(" ");
+//    document.write(maxtime);
+}
+</script>
+
+<title>Example</title>
+</head>
+<body>
+<h1>Example</h1>
+<table border="1">
+<tr>
+<td>
+<form>
+Dataset: <select name="dataset">%(dataset_options)s</select><br>
+Experiment: <select name="experiment">%(experiment_options)s</select><br>
+Units: <select name="unit" multiple>%(unit_options)s</select><br>
+<input type=submit value="Reload">
+</form>
+</td>
+<td>
+<h2>Template xxx</h2>
+</td>
+</tr>
+<tr>
+<td>
+<h2>Spike trains</h2>
+%(spiketrain_code)s
+</td>
+<td>
+<h2>Stimulus</h2>
+</td>
+</tr>
+<tr>
+<td>
+<h2>Info</h2>
+</td>
+<td>
+<h2>Annotations</h2>
+</td>
+</tr>
+</table>
+</body>
+</html>
+""" % vals
+    return Response(body=body, content_type='text/html')
+
+    

@@ -1,0 +1,31 @@
+function
+make_spiketime_plot(uname, spiketimes)
+{
+    // What is the min and max spike time..  Assume spiketimes is sorted
+    var mintime = spiketimes[0];
+    var maxtime = spiketimes[spiketimes.length - 1];
+    
+    var canv = document.getElementById(uname + "_canvas");
+    var ctx = canv.getContext("2d");
+
+    var width = canv.width;
+    var height = canv.height;
+    var margin = 5;
+    var datawidth = width - margin * 2;
+    var dataheight = height - margin * 2;
+
+    ctx.fillStyle = "#FFEEEE";
+    ctx.fillRect(margin, margin, datawidth, dataheight);
+    var tfactor = datawidth / (maxtime - mintime);
+    for (var i = 0; i < spiketimes.length; i++) {
+        var x = (spiketimes[i] - mintime) * tfactor;
+        ctx.moveTo(x + margin, margin);
+        ctx.lineTo(x + margin, dataheight + margin);
+        ctx.stroke();
+    }
+//    document.write(uname);
+//    document.write(" ");
+//    document.write(mintime);
+//    document.write(" ");
+//    document.write(maxtime);
+}

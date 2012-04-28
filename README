@@ -1,0 +1,6 @@
+
+lib contains shared code and programs to convert from the pvc datasets to crcns-hdf format
+
+nresp is a pyramid plugin to display neural response data in a brower
+
+All is very much under construction.
