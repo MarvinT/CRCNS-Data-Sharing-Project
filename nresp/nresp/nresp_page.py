@@ -5,6 +5,7 @@ import json
 from pyramid.response import Response
 
 BaseDir = '/home/wayne/crcns'
+CrcnsHdf = BaseDir + '/lib/crcns_hdf.py'
 
 ExperimentCache = {}
 
@@ -28,7 +29,7 @@ def ExperimentOptions(dataset, experiment) :
 def UnitOptions(dataset, experiment, units) :
     if dataset and experiment :
         filename = HdfFilename(dataset, experiment)
-        cmd = '%s/crcns_hdf.py --list-spiketrains --filename %s' % (BaseDir, filename, )
+        cmd = '%s --list-spiketrains --filename %s' % (CrcnsHdf, filename, )
         opts = [u.strip() for u in os.popen(cmd).readlines()]
     else :
         opts = []
@@ -38,29 +39,11 @@ def ReadExperiment(dataset, experiment) :
     filename = HdfFilename(dataset, experiment)
     return read_hdf(filename)
 
-def SpiketrainCode(dataset, experiment, units, start_ms, end_ms) :
-    filename = HdfFilename(dataset, experiment)
-    ret = ""
-    for unit in units :
-        cmd = '%s/crcns_hdf.py --spiketrain-values --filename %s --unit %s --start-ms %s --end-ms %s' % (BaseDir, filename, unit, start_ms, end_ms)
-        print cmd
-        times = [int(u) for u in os.popen(cmd).readlines()]
-        print len(times), 'times'
-        vals = {
-            'values' : json.dumps(times),
-            'unit' : unit,
-            }
-        ret += """
-<canvas id="%(unit)s_canvas" width="800" height="60"></canvas>
-<script>make_spiketime_plot("%(unit)s", %(values)s);</script></br>
-""" % vals
-    return ret
-
 def SpiketrainMinMax(dataset, experiment, units) :
     filename = HdfFilename(dataset, experiment)
     mint, maxt = None, None
     for unit in units :
-        cmd = '%s/crcns_hdf.py --spiketrain-minmax --filename %s --unit %s' % (BaseDir, filename, unit)
+        cmd = '%s --spiketrain-minmax --filename %s --unit %s' % (CrcnsHdf, filename, unit)
         print cmd
         minmax1 = [int(v) for v in os.popen(cmd).readlines()]
         if mint == None or minmax1[0] < mint : mint = minmax1[0]
@@ -84,12 +67,10 @@ def GetPage(req) :
     spiketrain_cur_ms = req.GET.get('spiketrain_cur_ms', 0)
     play_speed = req.GET.get('play_speed', 1.0)
     
-    spiketrain_code = SpiketrainCode(dataset, experiment, units, spiketrain_start_ms, spiketrain_end_ms)
     vals = {
         'dataset_options' : DatasetOptions(dataset),
         'experiment_options' : ExperimentOptions(dataset, experiment),
         'unit_options' : UnitOptions(dataset, experiment, units),
-        'spiketrain_code' : spiketrain_code,
         'dataset' : dataset,
         'experiment' : experiment,
         'units' : ' '.join(units),
@@ -107,8 +88,12 @@ def GetPage(req) :
 <meta http-equiv="Pragma" content="no-cache">
 
 <!-- <script src="http://code.jquery.com/jquery-latest.js"></script> -->
-<script src="/static/nresp_funcs.js"></script>
 <script src="/static/jquery.min.js"></script>
+<!-- <script src="/static/jquery.jplayer.min.js"></script> -->
+<script src="/static/json2.js"></script>
+<script src="/static/JSONRequest.js"></script>
+<script src="/static/JSONRequestError.js"></script>
+<script src="/static/nresp_funcs.js"></script>
 
 <title>Example</title>
 </head>
@@ -118,12 +103,21 @@ def GetPage(req) :
 <tr>
 <td>
 <form>
-Dataset: <select name="dataset">%(dataset_options)s</select><br>
-Experiment: <select name="experiment">%(experiment_options)s</select><br>
-Units: <select name="unit" multiple>%(unit_options)s</select><br>
+Dataset: <select name="dataset" id="dataset_select">%(dataset_options)s</select><br>
+Experiment: <select name="experiment" id="experiment_select">%(experiment_options)s</select><br>
+Units: <select name="unit" multiple id="unit_select">%(unit_options)s</select><br>
 <input type=submit value="Reload">
 </form>
 </td>
+
+<td>
+<h2 id="stimulus_header">Stimulus</h2>
+<video id="stimulus_video">
+<source type="video/ogg" />
+Stimulus video goes here
+</video>
+</td>
+
 <!--
 <td>
 <h2>Template xxx</h2>
@@ -131,26 +125,22 @@ Units: <select name="unit" multiple>%(unit_options)s</select><br>
 -->
 </tr>
 <tr>
-<td>
+<td colspan=2>
 <h2>Spike trains</h2>
-%(spiketrain_code)s
+<canvas id="spiketimes_canvas"></canvas>
+<script>setup_spiketimes();</script>
 <form>
-Start ms <input name=spiketrain_start_ms value=%(spiketrain_start_ms)s>
-End ms <input name=spiketrain_end_ms value=%(spiketrain_end_ms)s>
-Cur ms <input name=spiketrain_cur_ms value=%(spiketrain_cur_ms)s>
-<input type=submit value="Update">
-<button onclick="play_back()">Play</button>
-Speed <input name=play_speed value=%(play_speed)s>
+Start ms <input name=spiketrain_start_ms id=spiketrain_start_ms value=%(spiketrain_start_ms)s>
+End ms <input name=spiketrain_end_ms id=spiketrain_end_ms value=%(spiketrain_end_ms)s>
+Cur ms <input name=spiketrain_cur_ms id=spiketrain_cur_ms value=%(spiketrain_cur_ms)s>
+<!-- <input type=submit value="Update"> -->
 <input type="hidden" name="dataset" value="%(dataset)s">
 <input type="hidden" name="experiment" value="%(experiment)s">
 <input type="hidden" name="units" multiple value="%(units)s">
 </form>
-</td>
-</tr>
-<tr>
-<td>
-<h2>Stimulus</h2>
-<img id="current_stimulus">
+<br>
+<input type="button" id=play_button onclick="play_back()" value="Play">
+Speed <input name=play_speed id="play_speed" value=%(play_speed)s>
 </td>
 </tr>
 <!--

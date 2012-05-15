@@ -3,12 +3,16 @@
 
 # http://crcns.org/data-sets/vc/pvc-3/downloads/crcns-pvc3-usersguide.pdf
 
-import math, os, sys, re, glob, argparse
+import math, os, sys, re, glob, argparse, tempfile
 import scipy.io
 import numpy
 import matplotlib.pyplot as plt
 from PIL import Image, ImageSequence
 from images2gif import writeGif
+
+# Note: pyffmpeg does not have writing capability
+# opencv seems to be the way to do this
+import cv
 
 os.environ['HDF5_DISABLE_VERSION_CHECK'] = '2' # my setup is a bit messed up -Wayne
 import h5py
@@ -93,11 +97,16 @@ if __name__ == "__main__" :
     parser.add_argument('--spiketrain-minmax', action='store_true')
     parser.add_argument('--stimulus-image', action='store_true')
     parser.add_argument('--stimulus-image-info', action='store_true')
+    parser.add_argument('--stimulus-image-movie', action='store_true')
+    parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--filename')
     parser.add_argument('--start-ms', type=int, default=-1)
     parser.add_argument('--end-ms', type=int, default=-1)
     parser.add_argument('--cur-ms', type=int, default=-1)
     parser.add_argument('--unit')
+    parser.add_argument('--format', default='none')
+    parser.add_argument('--outfile', default='')
+    parser.add_argument('--scale', type=int, default=1)
     args = parser.parse_args()
     
     if args.list_spiketrains :
@@ -142,4 +151,58 @@ if __name__ == "__main__" :
         n, x, y = ex.stim_movie.shape
         ms = ex.stim_movie_frame_ms
         print n, x, y, ' '.join([str(m) for m in ms])
+
+    elif args.stimulus_image_movie :
+        ex = read_hdf(args.filename)
+        n, x, y = ex.stim_movie.shape
+        times = ex.stim_movie_frame_ms
+        rate = int(1000 / (times[1] - times[0])) # better not be variable rate
         
+        #ftype = cv.CV_FOURCC('P', 'I', 'M', '1')
+        tmpdir = tempfile.mkdtemp(prefix="crcns_video_")
+        for fr in range(times.shape[0]) :
+            im = Image.fromarray(numpy.uint8(ex.stim_movie[fr]))
+            tmpfile = "%s/%06d.png" % (tmpdir, fr)
+            im.save(tmpfile, format='png')
+        if args.outfile :
+            outfile = args.outfile
+            vtmp = None
+        else :
+            if args.format == 'ogv' :
+                suff = '.ogv'
+            elif args.format == 'm4v' :
+                suff = '.mp4'
+            else :
+                raise Exception, "unknown format " + args.format
+            _, vtmp = tempfile.mkstemp(prefix="crcns_video_", suffix=suff)
+            outfile = vtmp
+        cmd = "ffmpeg -i %s/%%06d.png -y -r %d -s %dx%d %s" % (tmpdir,
+                                                              rate, 
+                                                              int(args.scale * x),
+                                                              int(args.scale * y),
+                                                              outfile)
+        if not args.verbose : cmd += " >/dev/null 2>&1"
+        os.system(cmd)
+        if args.verbose :
+            print "wrote file ", outfile
+        elif vtmp :
+            sys.stdout.write(file(vtmp).read())
+            os.system("rm %s" % (vtmp))
+        os.system("rm -r %s" % (tmpdir))
+            
+        
+#        ftype = cv.CV_FOURCC('I', '4', '2', '0')
+#        writer = cv.CreateVideoWriter(vtmp, 0, 50, (x, y), 0)
+#        for fr in range(times.shape[0]) :
+#            print fr
+#            mat = cv.fromarray(ex.stim_movie[fr])
+#            cv_im = cv.CreateImageHeader((x, y), cv.IPL_DEPTH_8U, 1)
+#            print mat
+#            #cv.SetData(cv_im, mat, y)
+#            #print cv_im
+#            #cv.WriteFrame(writer, cv_im)
+#            cv.WriteFrame(writer, mat)
+#        writer.close()
+#        print vtmp
+        
+            

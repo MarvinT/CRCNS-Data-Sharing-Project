@@ -8,5 +8,6 @@ def main(global_config, **settings):
     config.add_route('home', '/')
     config.add_route('nresp', '/nresp')
     config.add_route('nresp-get-stimulus', '/nresp-get-stimulus')
+    config.add_route('nresp-get-spiketimes', '/nresp-get-spiketimes')
     config.scan()
     return config.make_wsgi_app()
