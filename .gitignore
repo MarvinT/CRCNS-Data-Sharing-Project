@@ -1,0 +1,5 @@
+# compiled python files
+*.pyc
+
+# data files
+*.hdf
