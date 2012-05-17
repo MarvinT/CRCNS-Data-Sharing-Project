@@ -1,0 +1,38 @@
+* {
+    margin: 0;
+}
+html, body {
+    height: 100%;
+}
+#neuro_data {
+    border: 1px solid black;
+    width: 100%;
+    height: auto;
+}
+
+#nd_canvas {
+    border: 1px dashed blue;
+    height: 150px;
+    margin-left: 2px;
+    margin-right: 2px;
+    padding-left: 2px;
+    padding-right: 2px;
+    }
+
+#page_content {
+    display: none;
+    margin-left: 4px;
+    margin-right: 4px;
+}
+
+.wrapper {
+    min-height: 100%;
+    height: auto !important;
+    height: 100%;
+    margin: 0 auto -4em;
+}
+.footer, .push {
+    height: 4em;
+}
+
+

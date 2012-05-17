@@ -1,0 +1,59 @@
+<!DOCTYPE html> 
+<!-- DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd" -->
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:metal="http://xml.zope.org/namespaces/metal"
+      xmlns:tal="http://xml.zope.org/namespaces/tal">
+<head>
+    <title>CRCNS.org pvc1- image viewer</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.4/jquery.min.js"></script>
+  <link href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8/themes/base/jquery-ui.css"
+          rel="stylesheet" type="text/css"/>
+  <script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8/jquery-ui.min.js"></script>
+  <script src="/static/crcns-data-viewer.js"></script>
+  <link href="/static/cdv.css" rel="stylesheet" type="text/css"/>
+  <style type="text/css">
+    #slider, #slider2 { margin: 10px; }
+  </style>
+</head>
+<body>
+<div id="file_select">
+Page size (mb): <input name="page_size" type="text" size="4" value="1" />
+<select id="file_list">
+    <option value="none">Select a file...</option>
+    <div tal:omit-tag tal:repeat="file file_list">
+        <option value="${file.id}">${file.name}</option>
+    </div>
+</select>
+<button type="button" name="Load">Load</button> 
+</div>
+<div id="page_content">
+<div id="view_select">
+Show: <input type="checkbox" name="show_type" value="stimulus" checked="checked" /> Stimulus
+<input type="checkbox" name="show_type" value="neuro_data" checked="checked" /> Neurodata &nbsp;
+Time <input type="text" name="current_time" value="0" size="6" />
+of <span id="total_time"></span> sec. &nbsp;
+View width (sec):  <input name="view_width_sec" type="text" value="30" size="4" />, page
+<select id="page_select">
+   <option value="1">1</option>
+</select>
+<button type="button" name="Load">Load</button>   
+</div>
+<div id="stimulus">
+  <p>Stimulus:</p>
+  <img src="" />
+</div>
+<div id="scroll_slider"></div>
+<div id="neuro_data">
+<p id="nd_heading">Neural data:</p>
+<canvas id="nd_canvas">
+  Unable to display data.  html5 Canvas is required.
+</canvas>  
+<div id="channel_checkboxes">
+</div>
+</div>
+</div>
+<p id="info_area"></p>
+<p id='path_message'></p>
+</body>
+</html>
